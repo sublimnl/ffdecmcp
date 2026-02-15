@@ -202,14 +202,18 @@ class FFDecDetector:
 
             import io
             with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
-                # Find ffdec.jar in the zip (may be at root or in a subdirectory)
+                # Find ffdec.jar and lib/ entries in the zip
                 jar_entry = None
                 lib_entries = []
                 for entry in zf.namelist():
+                    # Skip directories
+                    if entry.endswith("/"):
+                        continue
                     basename = entry.split("/")[-1]
                     if basename == "ffdec.jar":
                         jar_entry = entry
-                    elif "/lib/" in entry and basename:
+                    # Match lib/ at root or inside a subdirectory (e.g. "lib/foo.jar" or "ffdec_25/lib/foo.jar")
+                    elif "lib/" in entry and basename.endswith(".jar"):
                         lib_entries.append(entry)
 
                 if not jar_entry:
@@ -221,7 +225,7 @@ class FFDecDetector:
                 with zf.open(jar_entry) as src, open(jar_dest, "wb") as dst:
                     dst.write(src.read())
 
-                # Extract lib/ directory (required dependencies)
+                # Extract lib/ JARs (required dependencies)
                 lib_dir = install_dir / "lib"
                 lib_dir.mkdir(exist_ok=True)
                 for entry in lib_entries:

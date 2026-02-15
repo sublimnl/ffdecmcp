@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ffdecmcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP wrapper for JPEXS Free Flash Decompiler (FFDec) - expose SWF decompilation tools to AI assistants"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
 authors = [
     { name = "sublimnl" }
 ]
@@ -16,7 +16,6 @@ keywords = ["mcp", "ffdec", "swf", "flash", "decompiler", "actionscript"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
