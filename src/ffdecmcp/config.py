@@ -196,44 +196,37 @@ class FFDecDetector:
             with urlopen(req, timeout=120) as resp:
                 zip_data = resp.read()
 
-            # Extract to install directory
+            # Extract entire zip to install directory
             install_dir = cls.INSTALL_DIR
             install_dir.mkdir(parents=True, exist_ok=True)
 
             import io
             with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
-                # Find ffdec.jar and lib/ entries in the zip
-                jar_entry = None
-                lib_entries = []
-                for entry in zf.namelist():
-                    # Skip directories
+                # Find the common prefix (e.g. "ffdec_25.0.0/") to strip it
+                names = zf.namelist()
+                prefix = ""
+                if names and "/" in names[0]:
+                    candidate = names[0].split("/")[0] + "/"
+                    if all(n.startswith(candidate) or n == candidate.rstrip("/") for n in names):
+                        prefix = candidate
+
+                # Extract all files, stripping the top-level directory prefix
+                for entry in names:
                     if entry.endswith("/"):
                         continue
-                    basename = entry.split("/")[-1]
-                    if basename == "ffdec.jar":
-                        jar_entry = entry
-                    # Match lib/ at root or inside a subdirectory (e.g. "lib/foo.jar" or "ffdec_25/lib/foo.jar")
-                    elif "lib/" in entry and basename.endswith(".jar"):
-                        lib_entries.append(entry)
-
-                if not jar_entry:
-                    logger.error("ffdec.jar not found in downloaded zip")
-                    return None
-
-                # Extract the JAR
-                jar_dest = install_dir / "ffdec.jar"
-                with zf.open(jar_entry) as src, open(jar_dest, "wb") as dst:
-                    dst.write(src.read())
-
-                # Extract lib/ JARs (required dependencies)
-                lib_dir = install_dir / "lib"
-                lib_dir.mkdir(exist_ok=True)
-                for entry in lib_entries:
-                    basename = entry.split("/")[-1]
-                    with zf.open(entry) as src, open(lib_dir / basename, "wb") as dst:
+                    # Strip prefix to flatten into install_dir
+                    rel_path = entry[len(prefix):] if prefix else entry
+                    if not rel_path:
+                        continue
+                    dest = install_dir / rel_path
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    with zf.open(entry) as src, open(dest, "wb") as dst:
                         dst.write(src.read())
 
-            jar_path = str(jar_dest)
+            jar_path = str(install_dir / "ffdec.jar")
+            if not Path(jar_path).is_file():
+                logger.error("ffdec.jar not found in extracted archive")
+                return None
             print(f"FFDec {version} installed to {install_dir}", file=sys.stderr)
             logger.info(f"FFDec downloaded and extracted to {jar_path}")
             return jar_path

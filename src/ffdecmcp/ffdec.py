@@ -65,7 +65,9 @@ class FFDecWrapper:
 
         elif self.config.mode == FFDecMode.JAR:
             # JAR execution: java -jar <jar_path> <args>
-            return ["java", "-jar", self.config.path] + args
+            # Use absolute path so cwd can be set to jar's directory (for classpath resolution)
+            jar_path = str(Path(self.config.path).resolve())
+            return ["java", "-Djava.awt.headless=true", "-jar", jar_path] + args
 
         else:  # NATIVE
             # Native execution: <binary_path> <args>
@@ -97,6 +99,11 @@ class FFDecWrapper:
 
         logger.info(f"Executing FFDec command: {' '.join(command)}")
 
+        # Set cwd to jar directory for classpath resolution in JAR mode
+        cwd = None
+        if self.config.mode == FFDecMode.JAR:
+            cwd = str(Path(self.config.path).resolve().parent)
+
         try:
             # Execute command
             result = subprocess.run(
@@ -104,6 +111,7 @@ class FFDecWrapper:
                 capture_output=True,
                 text=True,
                 timeout=timeout,
+                cwd=cwd,
                 creationflags=(
                     subprocess.CREATE_NO_WINDOW
                     if sys.platform == "win32"
@@ -519,12 +527,14 @@ class FFDecWrapper:
         metadata = {}
 
         # Parse header lines
-        # Format: "Key: Value"
+        # Format: "key=value" (with optional [header] section marker)
         for line in header.split("\n"):
             line = line.strip()
-            if ":" in line:
-                key, value = line.split(":", 1)
-                key = key.strip().lower().replace(" ", "_")
+            if line.startswith("[") or not line:
+                continue
+            if "=" in line:
+                key, value = line.split("=", 1)
+                key = key.strip().lower()
                 value = value.strip()
 
                 # Convert numeric values
